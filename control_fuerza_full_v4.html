@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Control de Fuerza</title>
+
+<style>
+  :root{
+    --bg:#0a0f1a; --panel:#0f172a; --panel2:#0b1224;
+    --text:#eaf2ff; --muted:#9db2d6; --line:#1f2a44;
+    --blue:#2b6cff; --blue2:#1a4fd6; --red:#d62828;
+    --green:#12b886; --green2:#0f9a72;
+    --amber:#ffcc66; --ok:#5cffb3; --bad:#ff5c7a;
+    --input:#071022; --shadow: 0 10px 25px rgba(0,0,0,.35);
+  }
+  body.hc{
+    --bg:#000; --panel:#0b0b0b; --panel2:#050505;
+    --text:#fff; --muted:#cfcfcf; --line:#2a2a2a; --input:#000;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body{
+    margin:0;
+    font-family:-apple-system,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--text);
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+      calc(env(safe-area-inset-bottom) + 70px) env(safe-area-inset-left);
+  }
+  .wrap{ max-width:820px; margin:0 auto; padding:12px 10px 18px; }
+
+  .header{
+    position:sticky; top:0; z-index:50;
+    background:linear-gradient(180deg, rgba(10,15,26,.98), rgba(10,15,26,.85));
+    backdrop-filter:blur(10px);
+    padding:10px 10px 8px; border-bottom:1px solid var(--line);
+  }
+  body.hc .header{ background:rgba(0,0,0,.92); }
+
+  .titlebar{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px; }
+  .title{ font-weight:900; letter-spacing:.6px; text-transform:uppercase; font-size:14px; opacity:.95; }
+  .smallbtn{
+    border:1px solid var(--line); background:var(--panel); color:var(--text);
+    border-radius:12px; padding:8px 10px; font-weight:800; font-size:12px; cursor:pointer;
+  }
+  .smallbtn:active{ transform:scale(.98); }
+
+  .results{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .pill{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:10px 10px; box-shadow:var(--shadow); min-height:56px;
+    display:flex; flex-direction:column; justify-content:center; gap:3px;
+  }
+  .pill .k{ font-size:11px; letter-spacing:.6px; text-transform:uppercase; color:var(--muted); font-weight:900; }
+  .pill .v{ font-variant-numeric:tabular-nums; font-size:18px; font-weight:950; }
+  .pill.warn{ border-color: rgba(255,204,102,.55); }
+  .pill.bad{ border-color: rgba(255,92,122,.55); }
+  .pill.ok{ border-color: rgba(92,255,179,.45); }
+
+  .alert{
+    margin-top:8px; padding:10px 12px; border-radius:14px;
+    border:1px solid rgba(255,92,122,.55);
+    background:rgba(255,92,122,.10);
+    font-weight:850; display:none;
+  }
+
+  .card{
+    background:var(--panel2); border:1px solid var(--line);
+    border-radius:16px; padding:8px; margin-top:10px; box-shadow:var(--shadow);
+  }
+  .row{
+    display:grid; grid-template-columns:1fr 150px; gap:10px; align-items:center;
+    padding:8px 8px; border-radius:12px;
+  }
+  .row + .row{ border-top:1px solid var(--line); }
+
+  .label{
+    font-weight:900; letter-spacing:.4px; text-transform:uppercase;
+    font-size:12px; line-height:1.15;
+  }
+  .sub .label{ opacity:.92; padding-left:16px; position:relative; }
+  .sub .label::before{ content:"-"; position:absolute; left:6px; opacity:.7; }
+
+  input{
+    width:100%; height:40px; border-radius:12px; border:1px solid var(--line);
+    background:var(--input); color:var(--text);
+    font-weight:950; font-size:16px; padding:0 12px; text-align:right; outline:none;
+  }
+  input:focus{ border-color:rgba(43,108,255,.8); box-shadow:0 0 0 3px rgba(43,108,255,.18); }
+
+  .footerbar{
+    position:fixed; left:0; right:0; bottom:0; z-index:60;
+    background:rgba(10,15,26,.92); backdrop-filter:blur(10px);
+    border-top:1px solid var(--line);
+    padding:10px 10px calc(env(safe-area-inset-bottom) + 10px);
+  }
+  body.hc .footerbar{ background:rgba(0,0,0,.92); }
+
+  .actions{
+    max-width:820px; margin:0 auto;
+    display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;
+  }
+  .btn{
+    border:0; border-radius:14px; height:44px;
+    font-weight:950; letter-spacing:.4px; text-transform:uppercase;
+    cursor:pointer; color:#fff;
+  }
+  .btn:active{ transform:scale(.99); opacity:.92; }
+  .btn.copy{ background:var(--blue); }
+  .btn.restore{ background:var(--green2); }
+  .btn.reset{ background:var(--red); }
+
+  .btn.disabled{
+    opacity:.45;
+    filter:saturate(.7);
+  }
+
+  @media (max-width:420px){
+    .row{ grid-template-columns:1fr 135px; }
+    .pill .v{ font-size:17px; }
+  }
+</style>
+</head>
+
+<body>
+  <div class="header">
+    <div class="titlebar">
+      <div class="title">Control de fuerza</div>
+      <button class="smallbtn" id="btnMode">Modo noche</button>
+    </div>
+
+    <div class="results">
+      <div class="pill" id="pillExt">
+        <div class="k">EXT. DEDUCIDOS</div>
+        <div class="v" id="ext_deducidos">0</div>
+      </div>
+      <div class="pill" id="pillDed">
+        <div class="k">DEDUCCIONES</div>
+        <div class="v" id="deducciones">0</div>
+      </div>
+      <div class="pill" id="pillFor">
+        <div class="k">FORMAN</div>
+        <div class="v" id="forman">0</div>
+      </div>
+    </div>
+
+    <div class="alert" id="alertDed">⚠️ AVISO: DEDUCCIONES &gt; FUERZA</div>
+  </div>
+
+  <div class="wrap">
+    <div class="card">
+      <div class="row"><div class="label">FUERZA</div><input id="fuerza"></div>
+
+      <div class="row"><div class="label">PERMISO</div><input id="permiso"></div>
+      <div class="row sub"><div class="label">EXT. PERMISO</div><input id="ext_permiso"></div>
+
+      <div class="row"><div class="label">PASE DE HORAS</div><input id="pase_horas"></div>
+      <div class="row"><div class="label">PROPIOS MEDIOS</div><input id="propios_medios"></div>
+
+      <div class="row"><div class="label">SERVICIO</div><input id="servicio"></div>
+      <div class="row sub"><div class="label">EXT. SERVICIO</div><input id="ext_servicio"></div>
+
+      <div class="row"><div class="label">OTROS</div><input id="otros"></div>
+
+      <div class="row"><div class="label">REBAJADO FORMACIÓN</div><input id="reb_formacion"></div>
+      <div class="row sub"><div class="label">EXT. REBAJADO FORMACIÓN</div><input id="ext_reb_formacion"></div>
+
+      <div class="row"><div class="label">REBAJADO</div><input id="rebajado"></div>
+      <div class="row sub"><div class="label">EXT. REBAJADO</div><input id="ext_rebajado"></div>
+
+      <div class="row"><div class="label">EXTERNADOS TOTALES</div><input id="externados_totales"></div>
+    </div>
+  </div>
+
+  <div class="footerbar">
+    <div class="actions">
+      <button class="btn copy" id="btnCopy">Copiar resumen</button>
+      <button class="btn restore" id="btnRestore">Recuperar</button>
+      <button class="btn reset" id="btnReset">Borrar todo</button>
+    </div>
+  </div>
+
+<script>
+  const STORAGE_KEY = "controlFuerza_v4";
+  const LAST_DELETED_KEY = "controlFuerza_last_deleted_v4";
+
+  const fieldIds = [
+    "fuerza","permiso","ext_permiso","pase_horas","propios_medios",
+    "servicio","ext_servicio","otros","reb_formacion","ext_reb_formacion",
+    "rebajado","ext_rebajado","externados_totales"
+  ];
+  const fields = fieldIds.map(id => document.getElementById(id));
+
+  fields.forEach(el => {
+    el.type = "text";
+    el.inputMode = "numeric";
+    el.pattern = "[0-9]*";
+    el.autocomplete = "off";
+    el.spellcheck = false;
+    el.value = "0";
+
+    el.addEventListener("focus", () => { if (el.value === "0") el.select(); });
+
+    el.addEventListener("input", () => {
+      el.value = (el.value || "").replace(/[^0-9]/g, "");
+      if (el.value === "") el.value = "0";
+      applyPerFieldLimit(el);
+      recalc(); autosave(); updateRestoreButton();
+    });
+
+    el.addEventListener("blur", () => {
+      if ((el.value || "").trim() === "") el.value = "0";
+      applyPerFieldLimit(el);
+      recalc(); autosave(); updateRestoreButton();
+    });
+  });
+
+  function intVal(id){
+    const v = (document.getElementById(id).value || "0").trim();
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function getSnapshot(){
+    const data = {};
+    fieldIds.forEach(id => data[id] = (document.getElementById(id).value || "0").replace(/[^0-9]/g,"") || "0");
+    data._mode = document.body.classList.contains("hc") ? "hc" : "normal";
+    return data;
+  }
+
+  function applySnapshot(data){
+    fieldIds.forEach(id => {
+      if (typeof data[id] === "string") {
+        document.getElementById(id).value = data[id].replace(/[^0-9]/g,"") || "0";
+      }
+    });
+    if (data._mode === "hc") document.body.classList.add("hc");
+    else document.body.classList.remove("hc");
+    applyPerFieldLimit(document.getElementById("fuerza"));
+    recalc(); autosave(); updateRestoreButton();
+  }
+
+  // Límite por campo: no superar FUERZA (solo aplica a entradas)
+  function applyPerFieldLimit(changedEl){
+    const fuerza = intVal("fuerza");
+    if (changedEl.id === "fuerza") {
+      fieldIds.forEach(id => {
+        if (id === "fuerza") return;
+        const el = document.getElementById(id);
+        if (intVal(id) > fuerza) el.value = String(fuerza);
+      });
+      return;
+    }
+    if (intVal(changedEl.id) > fuerza) changedEl.value = String(fuerza);
+  }
+
+  function recalc(){
+    const fuerza = intVal("fuerza");
+    const permiso = intVal("permiso");
+    const ext_permiso = intVal("ext_permiso");
+    const pase_horas = intVal("pase_horas");
+    const propios_medios = intVal("propios_medios");
+    const servicio = intVal("servicio");
+    const ext_servicio = intVal("ext_servicio");
+    const otros = intVal("otros");
+    const reb_formacion = intVal("reb_formacion");
+    const ext_reb_formacion = intVal("ext_reb_formacion");
+    const ext_rebajado = intVal("ext_rebajado");
+    const externados_totales = intVal("externados_totales");
+
+    const ext_deducidos =
+      externados_totales
+      - ext_permiso
+      - ext_servicio
+      - ext_reb_formacion
+      - ext_rebajado;
+
+    const deducciones =
+      permiso
+      + pase_horas
+      + propios_medios
+      + servicio
+      + ext_deducidos
+      + reb_formacion
+      + otros;
+
+    const forman = fuerza - deducciones;
+
+    document.getElementById("ext_deducidos").textContent = String(ext_deducidos);
+    document.getElementById("deducciones").textContent = String(deducciones);
+    document.getElementById("forman").textContent = String(forman);
+
+    const alert = document.getElementById("alertDed");
+    alert.style.display = (deducciones > fuerza) ? "block" : "none";
+
+    const pillDed = document.getElementById("pillDed");
+    const pillFor = document.getElementById("pillFor");
+    const pillExt = document.getElementById("pillExt");
+    pillDed.classList.remove("warn","bad","ok");
+    pillFor.classList.remove("warn","bad","ok");
+    pillExt.classList.remove("warn","bad","ok");
+
+    if (ext_deducidos < 0) pillExt.classList.add("warn");
+    if (deducciones > fuerza) pillDed.classList.add("bad"); else pillDed.classList.add("ok");
+    if (forman < 0) pillFor.classList.add("bad"); else pillFor.classList.add("ok");
+  }
+
+  function autosave(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(getSnapshot()));
+  }
+
+  function load(){
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    try{ applySnapshot(JSON.parse(raw)); } catch {}
+  }
+
+  function updateRestoreButton(){
+    const btn = document.getElementById("btnRestore");
+    const has = !!localStorage.getItem(LAST_DELETED_KEY);
+    btn.classList.toggle("disabled", !has);
+    btn.disabled = !has;
+  }
+
+  // Exportar: copiar resumen
+  async function copySummary(){
+    const extDed = document.getElementById("ext_deducidos").textContent;
+    const ded = document.getElementById("deducciones").textContent;
+    const forman = document.getElementById("forman").textContent;
+
+    const lines = [
+      `FUERZA: ${intVal("fuerza")}`,
+      ``,
+      `PERMISO: ${intVal("permiso")}`,
+      `  EXT. PERMISO: ${intVal("ext_permiso")}`,
+      `PASE DE HORAS: ${intVal("pase_horas")}`,
+      `PROPIOS MEDIOS: ${intVal("propios_medios")}`,
+      `SERVICIO: ${intVal("servicio")}`,
+      `  EXT. SERVICIO: ${intVal("ext_servicio")}`,
+      `OTROS: ${intVal("otros")}`,
+      `REBAJADO FORMACIÓN: ${intVal("reb_formacion")}`,
+      `  EXT. REBAJADO FORMACIÓN: ${intVal("ext_reb_formacion")}`,
+      `REBAJADO: ${intVal("rebajado")}`,
+      `  EXT. REBAJADO: ${intVal("ext_rebajado")}`,
+      ``,
+      `EXTERNADOS TOTALES: ${intVal("externados_totales")}`,
+      `EXT. DEDUCIDOS: ${extDed}`,
+      ``,
+      `DEDUCCIONES: ${ded}`,
+      `FORMAN: ${forman}`
+    ].join("\n");
+
+    try{ await navigator.clipboard.writeText(lines); toast("Resumen copiado"); }
+    catch{
+      const ta = document.createElement("textarea");
+      ta.value = lines; document.body.appendChild(ta); ta.select();
+      document.execCommand("copy"); document.body.removeChild(ta);
+      toast("Resumen copiado");
+    }
+  }
+
+  // Borrar todo (guardando snapshot para recuperar)
+  function resetAll(){
+    // Guarda el estado actual como "último borrado"
+    localStorage.setItem(LAST_DELETED_KEY, JSON.stringify(getSnapshot()));
+
+    fieldIds.forEach(id => document.getElementById(id).value = "0");
+    recalc(); autosave();
+    updateRestoreButton();
+    toast("Datos borrados");
+  }
+
+  // Recuperar últimos datos borrados
+  function restoreLastDeleted(){
+    const raw = localStorage.getItem(LAST_DELETED_KEY);
+    if (!raw) return;
+    try{
+      const data = JSON.parse(raw);
+      applySnapshot(data);
+      toast("Datos recuperados");
+    }catch{
+      toast("No se pudo recuperar");
+    }
+  }
+
+  // Toast
+  let toastTimer=null;
+  function toast(msg){
+    clearTimeout(toastTimer);
+    let el=document.getElementById("toast");
+    if(!el){
+      el=document.createElement("div");
+      el.id="toast";
+      el.style.position="fixed";
+      el.style.left="50%";
+      el.style.bottom="90px";
+      el.style.transform="translateX(-50%)";
+      el.style.padding="10px 12px";
+      el.style.borderRadius="14px";
+      el.style.border="1px solid rgba(43,108,255,.45)";
+      el.style.background="rgba(15,23,42,.92)";
+      el.style.color="var(--text)";
+      el.style.fontWeight="900";
+      el.style.letterSpacing=".3px";
+      el.style.zIndex="999";
+      el.style.backdropFilter="blur(10px)";
+      document.body.appendChild(el);
+    }
+    el.textContent=msg; el.style.opacity="1";
+    toastTimer=setTimeout(()=>{ el.style.opacity="0"; },1300);
+  }
+
+  document.getElementById("btnMode").addEventListener("click", ()=>{ document.body.classList.toggle("hc"); autosave(); });
+  document.getElementById("btnCopy").addEventListener("click", copySummary);
+  document.getElementById("btnReset").addEventListener("click", resetAll);
+  document.getElementById("btnRestore").addEventListener("click", restoreLastDeleted);
+
+  // Cerrar teclado tocando fuera
+  document.addEventListener("touchstart",(e)=>{
+    const isInput=e.target && e.target.tagName==="INPUT";
+    if(!isInput && document.activeElement && document.activeElement.tagName==="INPUT") document.activeElement.blur();
+  },{passive:true});
+
+  // Init
+  load();
+  applyPerFieldLimit(document.getElementById("fuerza"));
+  recalc();
+  autosave();
+  updateRestoreButton();
+</script>
+</body>
+</html>
